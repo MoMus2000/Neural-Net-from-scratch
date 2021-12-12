@@ -2,6 +2,28 @@ import numpy as np
 import pandas as pd
 
 
+class Activation:
+    def __init__(self, activation, activation_prime):
+        self.activation = activation
+        self.activation_prime = activation_prime
+
+    def forward(self, input):
+        self.input = input
+        return self.activation(self.input)
+
+    def back_prop(self, output_gradient, learning_rate):
+        return np.multiply(output_gradient, self.activation_prime(self.input))
+
+class Tanh(Activation):
+    def __init__(self):
+        def tanh(x):
+            return np.tanh(x)
+
+        def tanh_prime(x):
+            return 1 - np.tanh(x) ** 2
+
+        super().__init__(tanh, tanh_prime)
+
 def relu(x):
     return np.maximum(x, 0)
 
@@ -45,6 +67,7 @@ class Dense:
         input_gradient = np.dot(self.weight.T, output)
         self.weight -= learning_rate * weights_gradient
         self.bias -= learning_rate * output
+        return input_gradient
 
     def __str__(self):
         return f"weight = {self.weight.shape} bias = {self.bias.shape} activation = {self.activation}"
@@ -53,11 +76,11 @@ class NN:
     def __init__(self):
         self.network = []
 
-    def train(self, X, y):
+    def train(self, X, Y):
         for e in range(0, 10):
             loss = 0
-            for i in range(0, 10):
-                out = self.predict(X)
+            for x, y in zip(X, Y):
+                out = self.predict(x)
 
                 loss += mse(y, out)
 
@@ -68,9 +91,6 @@ class NN:
 
             loss /= len(X)
             print(f"Error: {loss}")
-
-
-
 
     def add(self, layer):
         self.network.append(layer)
@@ -95,14 +115,35 @@ class NN:
         return output
 
 
+from keras.datasets import mnist
+from keras.utils import np_utils
+
+def preprocess_data(x, y, limit):
+    # reshape and normalize input data
+    x = x.reshape(x.shape[0], 28 * 28, 1)
+    x = x.astype("float32") / 255
+    # encode output which is a number in range [0,9] into a vector of size 10
+    # e.g. number 3 will become [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]
+    y = np_utils.to_categorical(y)
+    y = y.reshape(y.shape[0], 10, 1)
+    return x[:limit], y[:limit]
+
+
+# load MNIST from server
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, y_train = preprocess_data(x_train, y_train, 1000)
+x_test, y_test = preprocess_data(x_test, y_test, 20)
+
+
 if __name__ == "__main__":
     path = "/Users/a./Desktop/Neural-Net-from-scratch/train.csv"
-    df = pd.read_csv(path, nrows=100)
-    X, y = loading_data(df)
-    y = one_hot(y)
-    print(y.shape)
+    # df = pd.read_csv(path, nrows=1000)
+    # X, y = loading_data(df)
+    # y = one_hot(y)
     model = NN()
-    model.add(Dense(784, 128))
+    model.add(Dense(28*28, 128))
+    model.add(Tanh())
     model.add(Dense(128, 64))
+    model.add(Tanh())
     model.add(Dense(64, 10))
-    model.train(X, y)
+    model.train(x_train, y_train)
