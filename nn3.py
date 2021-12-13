@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
+from sklearn.datasets import make_classification
+import matplotlib.pyplot as plt
 
+EPOCHS = 100
 
 def to_categorical(y, num_classes, dtype='float32'):
     y = np.array(y, dtype='int')
@@ -85,8 +88,8 @@ class NN:
         self.network = []
 
     def train(self, X, Y):
-        for e in range(0, 15000):
-            print(f"Epoch {e} of {15000}")
+        for e in range(0, EPOCHS):
+            print(f"Epoch {e} of {EPOCHS}")
             loss = 0
             for x, y in zip(X, Y):
                 out = self.predict(x)
@@ -96,7 +99,7 @@ class NN:
                 grad = mse_prime(y, out)
 
                 for layer in reversed(self.network):
-                    grad = layer.back_prop(grad, 0.01)
+                    grad = layer.back_prop(grad, 0.05)
 
             loss /= len(X)
             print(f"Error: {loss}")
@@ -144,13 +147,42 @@ if __name__ == "__main__":
     # model.add(Tanh())
     # model.add(Dense(64, 10))
     # model.train(X, y)
-    X = np.reshape([[0, 1], [0, 1], [1, 0], [1, 1], [0,0]], (5, 2, 1))
-    Y = np.reshape([[0], [0], [0], [1], [0]], (5, 1, 1))
+    # X = np.reshape([[0, 1], [0, 1], [1, 0], [1, 1], [0,0]], (5, 2, 1))
+    # Y = np.reshape([[0], [0], [0], [1], [0]], (5, 1, 1))
+    X, Y = make_classification(n_samples=1000, n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=1)
+    # plt.scatter(X[:, 0], X[:, 1], marker="o", c=Y, s=25, edgecolor="k")
+
+    X = np.reshape(X, (len(X), 2, 1))
+    Y = np.reshape(Y, (len(X), 1, 1))
     model = NN()
-    model.add(Dense(2, 5))
+    model.add(Dense(2, 64))
     model.add(Tanh())
-    model.add(Dense(5, 1))
+    model.add(Dense(64, 32))
+    model.add(Tanh())
+    model.add(Dense(32, 16))
+    model.add(Tanh())
+    model.add(Dense(16, 1))
     model.add(Tanh())
     model.train(X, Y)
 
-    print(model.predict([[1], [1]]))
+    results = []
+    x_axis = []
+    y_axis = []
+    acc = 0
+    corr = 0
+    for x,y in zip(X, Y):
+        result = model.predict(x)[0][0]
+        results.append(result)
+        x_axis.append(x[0][0])
+        y_axis.append(y[0][0])
+        if result > 0.5 and y[0][0] == 1:
+            corr += 1
+        elif result < 0.5 and y[0][0] == 0:
+            corr+=1
+
+
+    print(f"Binary Classification Accuracy : {(corr/len(X)) * 100}")
+    plt.scatter(x_axis, y_axis, marker="o", s=25, edgecolor="k")
+    plt.scatter(x_axis, results, marker="x", s=25, edgecolor="k")
+    plt.show()
+
