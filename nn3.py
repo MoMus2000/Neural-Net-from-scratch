@@ -2,6 +2,21 @@ import numpy as np
 import pandas as pd
 
 
+def to_categorical(y, num_classes, dtype='float32'):
+    y = np.array(y, dtype='int')
+    input_shape = y.shape
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
+    y = y.ravel()
+    if not num_classes:
+        num_classes = np.max(y) + 1
+    n = y.shape[0]
+    categorical = np.zeros((n, num_classes), dtype=dtype)
+    categorical[np.arange(n), y] = 1
+    output_shape = input_shape + (num_classes,)
+    categorical = np.reshape(categorical, output_shape)
+    return categorical
+
 class Activation:
     def __init__(self, activation, activation_prime):
         self.activation = activation
@@ -38,13 +53,6 @@ def one_hot(y):
 def deriv_relu(x):
     return x > 0
 
-def loading_data(df):
-    df = np.array(df)
-    df = df[:].T
-    X = df[1:]/255.
-    y = df[0]
-    return X, y
-
 def mse(y_true, y_pred):
     return np.mean(np.power(y_true - y_pred, 2))
 
@@ -77,7 +85,8 @@ class NN:
         self.network = []
 
     def train(self, X, Y):
-        for e in range(0, 10):
+        for e in range(0, 15000):
+            print(f"Epoch {e} of {15000}")
             loss = 0
             for x, y in zip(X, Y):
                 out = self.predict(x)
@@ -87,7 +96,7 @@ class NN:
                 grad = mse_prime(y, out)
 
                 for layer in reversed(self.network):
-                    grad = layer.back_prop(grad, 0.1)
+                    grad = layer.back_prop(grad, 0.01)
 
             loss /= len(X)
             print(f"Error: {loss}")
@@ -114,36 +123,34 @@ class NN:
             output = layer.forward(output)
         return output
 
-
-from keras.datasets import mnist
-from keras.utils import np_utils
-
-def preprocess_data(x, y, limit):
-    # reshape and normalize input data
-    x = x.reshape(x.shape[0], 28 * 28, 1)
-    x = x.astype("float32") / 255
-    # encode output which is a number in range [0,9] into a vector of size 10
-    # e.g. number 3 will become [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]
-    y = np_utils.to_categorical(y)
+def loading_data(df):
+    X = df.drop(labels=['label'], axis=1)
+    X = np.array(X)
+    X = X.reshape(X.shape[0] ,28*28, 1)
+    y = np.array(df['label'])
+    y = to_categorical(y, 10)
     y = y.reshape(y.shape[0], 10, 1)
-    return x[:limit], y[:limit]
-
-
-# load MNIST from server
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train, y_train = preprocess_data(x_train, y_train, 1000)
-x_test, y_test = preprocess_data(x_test, y_test, 20)
+    return X, y
 
 
 if __name__ == "__main__":
-    path = "/Users/a./Desktop/Neural-Net-from-scratch/train.csv"
-    # df = pd.read_csv(path, nrows=1000)
+    # path = "/Users/a./Desktop/Neural-Net-from-scratch/train.csv"
+    # df = pd.read_csv(path)
     # X, y = loading_data(df)
-    # y = one_hot(y)
+    # model = NN()
+    # model.add(Dense(28*28, 128))
+    # model.add(Tanh())
+    # model.add(Dense(128, 64))
+    # model.add(Tanh())
+    # model.add(Dense(64, 10))
+    # model.train(X, y)
+    X = np.reshape([[0, 1], [0, 1], [1, 0], [1, 1], [0,0]], (5, 2, 1))
+    Y = np.reshape([[0], [0], [0], [1], [0]], (5, 1, 1))
     model = NN()
-    model.add(Dense(28*28, 128))
+    model.add(Dense(2, 5))
     model.add(Tanh())
-    model.add(Dense(128, 64))
+    model.add(Dense(5, 1))
     model.add(Tanh())
-    model.add(Dense(64, 10))
-    model.train(x_train, y_train)
+    model.train(X, Y)
+
+    print(model.predict([[1], [1]]))
